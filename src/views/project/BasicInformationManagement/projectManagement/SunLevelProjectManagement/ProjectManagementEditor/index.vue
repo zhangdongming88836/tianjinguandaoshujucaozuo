@@ -1,0 +1,215 @@
+<template>
+  <div id="NewProjecanagement">
+    <el-dialog title="编辑" :visible.sync="ProjectManagementEditor" width="30%" center @open="open" @close="close">
+      <div style="padding:25px">
+        <el-form :model="ruleForm" :rules="rules" ref="ruleForm" label-width="100px" class="demo-ruleForm" >
+          <el-form-item label="项目名称" prop="projectName">
+            <el-input v-model="ruleForm.projectName" style="width:192px;"></el-input>
+          </el-form-item>
+          <el-form-item label="所属公司" prop="ownedCompany">
+          <el-select v-model="ruleForm.ownedCompany" placeholder="请选择所属公司" @change="checkTheHomework">
+          <el-option v-for="item in Companys" :key="item.id" :label="item.name" :value="item.id"> </el-option>
+        </el-select>
+          </el-form-item>
+          <el-form-item label="所属作业区" prop="ownedWorkAreaName">
+           <el-select v-model="ruleForm.ownedWorkAreaName" placeholder="请选择所属作业区" @change="checkTheProject">
+          <el-option v-for="item in OperationAreas" :key="item.id" :label="item.name" :value="item.name"> </el-option>
+        </el-select>
+          </el-form-item>
+        </el-form>
+      </div>
+       <div style="width:99.5%;border:1px solid #cccccc"></div>
+        <div style="height:10px"></div>
+      <div class="jklh">
+        <el-button @click="ProjectManagementEditor = false">取 消</el-button>
+        <el-button type="primary" @click="CreateProjectManagementAdd('ruleForm')">确 定</el-button>
+        </div>
+       <div style="height:10px"></div>
+    </el-dialog>
+  </div>
+</template>
+<script>
+import { projectInformationList,projectInformationcompany,projectInformationworkArea,projectInformationproject,projectInformationremove,projectInformationdetails,projectInformationupdate,acceptanceReportreupdateAfter } from '@/api/PM'
+export default {
+  props: ['ProjectManagementEditor',"id"],
+  data() {
+    return {
+      ruleForm: {
+       projectName: '',
+         //所属公司选中id
+       ownedCompany: '',
+       //所属公司选中名字
+       ownedCompanyName:"",
+       //所属作业区选中id
+       ownedWorkArea: '',
+        //所属作业区选中名字
+       ownedWorkAreaName:"",
+       id:""
+      },
+      rules: {
+        ownedCompany: [{ required: true, message: '请输入所属公司', trigger: 'change' }],
+        ownedWorkAreaName: [{ required: true, message: '请输入所属作业区', trigger: 'change' }],
+        projectName: [{ required: true, message: '请输入项目名称', trigger: 'blur' }],
+      },
+        //所属公司下拉
+      Companys: [
+        {
+          label: '花花',
+          value: '1',
+        },
+      ],
+      //所属作业区
+      OperationAreas: [
+        {
+          label: '花花',
+          value: '1',
+        },
+      ],
+    }
+  },
+  methods: {
+     /********************下拉获取区域************************ */
+      //通过公司id查询作业区
+    checkTheHomework(val){
+      this.ruleForm.ownedWorkAreaName = ""
+      projectInformationworkArea(val).then( res=>{
+        // console.log(res,"////////")
+        this.OperationAreas = res.data.data;
+      })
+       let obj = {}
+      obj = this.Companys.find(item => {
+        //这里的userList就是上面遍历的数据源
+        return item.id === val //筛选出匹配数据
+      })
+      // console.log(obj);//获取的 name
+      // console.log(this.ruleForm.projectName)
+      this.ruleForm.ownedCompanyName = obj.name
+    },
+    //获取作业区的id
+    checkTheProject(val){
+       let obj = {}
+      obj = this.OperationAreas.find(item => {
+        //这里的userList就是上面遍历的数据源
+        return item.name === val //筛选出匹配数据
+      })
+      // console.log(obj);//获取的 name
+      // console.log(this.ruleForm.projectName)
+      this.ruleForm.ownedWorkArea = obj.id
+    },
+    /****************************************** */
+    //关闭钩子
+    close() {
+        console.log(1111111111)
+      this.$emit('ProjectManagementEditClose', false)
+      this.clearValidate('ruleForm')
+    },
+    //打开钩子
+   async open() {
+            //获取下拉公司
+         await projectInformationcompany().then(res=>{
+      // console.log(res,"*********")
+      this.Companys = res.data.data;
+    });
+        //先获取本条数据
+      await   projectInformationdetails(this.ruleForm.id).then(res=>{
+         console.log(res,"++++")
+         this.ruleForm = res.data.data
+       })
+         await projectInformationworkArea(this.ruleForm.ownedCompany).then( res=>{
+        // console.log(res,"////////")
+        this.OperationAreas = res.data.data;
+      })
+    },
+    //新增确定
+  CreateProjectManagementAdd(formName) {
+      console.log(11111111111111)
+    this.$refs[formName].validate(valid => {
+      if (valid) {
+         const loading = this.$loading({
+          lock: true,
+          text: '加载中',
+          spinner: 'el-icon-loading',
+          background: 'rgba(0, 0, 0, 0.7)'
+        });
+       projectInformationupdate(this.ruleForm).then(res=>{
+             if(res.data.code == 200){
+               acceptanceReportreupdateAfter(res.data.data).then(res=>{
+
+               })
+               loading.close();
+            this.$message({
+          message: `${res.data.msg}`,
+          type: 'success'
+        });
+        this.$emit("PublicAccessLisk")
+         this.$emit('ProjectManagementEditClose', false)
+          }else{
+            loading.close();
+             this.$message({
+          message: `${res.data.msg}`,
+          type: 'warning'
+        });
+          }
+       })
+      } else {
+        console.log('error submit!!')
+        return false
+      }
+    })
+  },
+  //清空验证
+    clearValidate(formName) {
+      this.$refs[formName].clearValidate();
+    }, 
+  },
+    watch:{
+      id: {
+      immediate: true,
+      deep: true,
+      handler(newName, oldName) {
+        // console.log(newName);
+        this.ruleForm.id = newName;
+        //  console.log(oldName)
+      },
+    }
+  }
+}
+</script>
+<style lang="scss">
+#NewProjecanagement {
+  /*************************** */
+
+  .el-transfer-panel {
+    width: 220px !important;
+    height: 435px !important;
+  }
+  .el-transfer-panel__list.is-filterable {
+    height: 200px;
+  }
+  .el-dialog__header {
+    background-color: #0075cb;
+  }
+  .el-dialog__title {
+    margin-left: -95% !important;
+    width: 32px;
+    height: 22px;
+    font-family: PingFang SC;
+    font-size: 16px;
+    font-weight: normal;
+    font-stretch: normal;
+    line-height: 22px;
+    letter-spacing: 0px;
+    color: #ffffff;
+  }
+  .el-icon-close:before {
+    color: #e4e4e4;
+  }
+    .el-dialog--center .el-dialog__body{
+    padding: 0px !important;
+  }
+  .jklh{
+    text-align: right;
+    margin-right:20px;
+  } 
+}
+</style>
